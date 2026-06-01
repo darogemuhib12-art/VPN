@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Security Architecture: The Evolution of VPN</title>
+    <style>
+        :root {
+            --bg-main: #050508;
+            --bg-card: rgba(13, 15, 24, 0.75);
+            --bg-panel: rgba(20, 24, 41, 0.85);
+            --border-color: rgba(43, 56, 88, 0.4);
+            --border-glow: rgba(0, 149, 255, 0.2);
+            --accent-blue: #0095ff;
+            --accent-cyan: #00f0ff;
+            --accent-purple: #8a2be2;
+            --accent-red: #ff3b30;
+            --accent-green: #34c759;
+            --text-main: #f5f6f9;
+            --text-muted: #8e9aa8;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Matrix/Grid overlay */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(18, 24, 38, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(18, 24, 38, 0.2) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 60vw;
+            height: 60vh;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(0, 149, 255, 0.04) 0%, rgba(138, 43, 226, 0.02) 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 1;
+            filter: blur(80px);
+        }
+
+        /* Container Layout */
+        .presentation-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 2;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            background: rgba(5, 5, 8, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-main);
+        }
+
+        .logo-icon {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--accent-cyan);
+            transform: rotate(45deg);
+            position: relative;
+        }
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--accent-blue);
+            top: 4px;
+            left: 4px;
+        }
+
+        .nav-status {
+            font-size: 12px;
+            font-family: monospace;
+            color: var(--accent-cyan);
+            background: rgba(0, 240, 255, 0.07);
+            padding: 4px 12px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        /* Slide Engineering */
+        .slide-window {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.6s;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 40px 60px;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            z-index: 5;
+        }
+
+        .slide-full-width {
+            grid-template-columns: 1fr !important;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .slide-info {
+            max-width: 540px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .slide-index {
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--accent-blue);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .slide-title {
+            font-size: 38px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1.15;
+            background: linear-gradient(135deg, var(--text-main) 30%, #a2b4cd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .slide-description {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .slide-visual {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Glassmorphism lists & components */
+        .metric-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .metric-item {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-color);
+            padding: 14px 20px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .metric-item.failed {
+            border-left: 3px solid var(--accent-red);
+        }
+        .metric-item.passed {
+            border-left: 3px solid var(--accent-green);
+        }
+
+        .metric-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .metric-value.fail { color: var(--accent-red); }
+        .metric-value.pass { color: var(--accent-green); }
+
+        /* Card grids for algorithms */
+        .algo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .algo-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: left;
+            position: relative;
+            transition: border-color 0.4s;
+        }
+        .algo-card.active-standard {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+
+        .algo-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            font-family: monospace;
+        }
+
+        .algo-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 6px;
+        }
+
+        /* Controls Footer */
+        footer {
+            height: 60px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            background: rgba(5, 5, 8, 0.9);
+            z-index: 10;
+        }
+
+        .timeline-bar {
+            flex: 1;
+            height: 3px;
+            background: rgba(255,255,255,0.05);
+            margin: 0 40px;
+            position: relative;
+            border-radius: 2px;
+        }
+
+        .timeline-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            transition: width 0.4s ease;
+        }
+
+        .controls-btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-family: monospace;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-blue);
+            background: rgba(0, 149, 255, 0.05);
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom Specific Layouts */
+        .cia-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+        }
+
+        /* Responsive Architecture */
+        @media(max-width: 1024px) {
+            .slide {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                overflow-y: auto;
+                padding: 20px;
+            }
+            .slide-visual {
+                min-height: 300px;
+            }
+            header, footer {
+                padding: 0 20px;
+            }
+            .timeline-bar {
+                margin: 0 15px;
+            }
+            .algo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .text-gradient-cyan {
+            background: linear-gradient(135deg, #fff, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .text-gradient-purple {
+            background: linear-gradient(135deg, #fff, var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="grid-overlay"></div>
+    <div class="ambient-glow"></div>
+
+    <div class="presentation-container">
+        <header>
+            <div class="logo-area">
+                <div class="logo-icon"></div>
+                <div>QuantumShield <span style="color:var(--text-muted); font-weight:300;">Labs</span></div>
+            </div>
+            <div class="nav-status" id="slide-tracker">SYS_STATUS: RUNNING // SLIDE 01</div>
+        </header>
+
+        <div class="slide-window" id="window">
+            
+            <div class="slide active" id="slide-0">
+                <div class="slide-info">
+                    <div class="slide-index">Section 01 // Architectural Flaws</div>
+                    <h2 class="slide-title">Why Was VPN Created?</h2>
+                    <p class="slide-description">In standard local networks, data segments transit openly across hardware layers. Without isolated framing protocols, packets are natively exposed to runtime interceptors executing within parallel promiscuous nodes.</p>
+                    <div class="metric-list">
+                        <div class="metric-item failed">
+                            <span class="metric-label">Network Infrastructure Security</span>
+                            <span class="metric-value fail">UNPROTECTED</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Node Interception State</span>
+                            <span class="metric-value" id="s1-status" style="color:var(--accent-red)">MONITORING...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s1"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-1">
+                <div class="slide-info">
+                    <div class="slide-index">Section 02 // Boundary Vulnerability</div>
+                    <h2 class="slide-title">The Password-Protected PDF Illusion</h2>
+                    <p class="slide-description">Enforcing encryption exclusively at individual application payloads provides a narrow defense matrix. While a primary target document might defy basic inspection, peripheral business assets and stream metadata remain fully exposed.</p>
+                    <div class="metric-list">
+                        <div class="metric-item passed"><span class="metric-label">PDF Payload (.pdf)</span><span class="metric-value pass">ENCRYPTED</span></div>
+                        <div class="metric-item failed"><span class="metric-label">Database Transactions (.sql)</span><span class="metric-value fail">CLEAR TEXT</span></div>
+                        <div class="metric-item failed"><span class="metric-label">Media Streaming (.mp4)</span><span class="metric-value fail">CLEAR TEXT</span></div>
+                        <div class="metric-item failed"><span class="metric-label">Archive Transmissions (.zip)</span><span class="metric-value fail">CLEAR TEXT</span></div>
+                    </div>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s2"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-2">
+                <div class="slide-info">
+                    <div class="slide-index">Section 03 // Operational Friction</div>
+                    <h2 class="slide-title">File Encryption App Bottlenecks</h2>
+                    <p class="slide-description">Relying on software utilities to manually process payloads forces deep structural complexity. Scale friction intensifies due to version synchronization issues, continuous seat licensing costs, and operational coordination demands across untrusted execution scopes.</p>
+                    <div class="metric-list">
+                        <div class="metric-item"><span class="metric-label">License Cost Scaling</span><span class="metric-value" style="color:var(--accent-red)">EXPONENTIAL</span></div>
+                        <div class="metric-item"><span class="metric-label">Receiver Interoperability</span><span class="metric-value">STRICT DEPS</span></div>
+                    </div>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s3"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-3">
+                <div class="slide-info">
+                    <div class="slide-index">Section 04 // Human Vulnerabilities</div>
+                    <h2 class="slide-title">The Threat of Employee Dependency</h2>
+                    <p class="slide-description">System security naturally degrades when it relies on flawless human behavior. Manual data protection rules trigger systemic gaps as individual users bypass policies, skip keys, or completely forget encryption workflows during operations.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s4"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-4">
+                <div class="slide-info">
+                    <div class="slide-index">Section 05 // Key Exchange Breakdown</div>
+                    <h2 class="slide-title">The Password Management Nightmare</h2>
+                    <p class="slide-description">As distributed operations expand, sharing structural secrets out-of-band causes severe architectural sprawl. Secrets quickly leak across unencrypted side channels like team chats, email histories, or physical sticky notes.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s5"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-5">
+                <div class="slide-info">
+                    <div class="slide-index">Section 06 // Data Integrity</div>
+                    <h2 class="slide-title">The Integrity Challenge</h2>
+                    <p class="slide-description">Without real-time cryptographic verification signatures, in-flight data strings can be manipulated by intermediate routing elements. Receiver nodes cannot verify if raw packet vectors were altered during public transit.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s6"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-6">
+                <div class="slide-info">
+                    <div class="slide-index">Section 07 // Resource Limits</div>
+                    <h2 class="slide-title">The Performance Challenge</h2>
+                    <p class="slide-description">Executing unoptimized mathematical cryptography transforms at the user application layer triggers intense CPU thread consumption. Large, bulk file loads saturate host system threads, causing performance degradation across active client environments.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s7"></canvas>
+                </div>
+            </div>
+
+            <div class="slide slide-full-width" id="slide-7">
+                <div class="slide-info" style="margin: 0 auto; max-width: 800px; text-align: center;">
+                    <div class="slide-index" style="letter-spacing: 6px;">The Paradigm Breakthrough</div>
+                    <h1 class="slide-title" style="font-size: 64px; margin-bottom: 20px;">VIRTUAL PRIVATE NETWORK</h1>
+                    <p class="slide-description" style="font-size: 18px;">Collapsing multi-layered endpoint complexities into an automated, sub-surface networking layer. Encapsulating all raw system assets within an enterprise-grade, continuous cryptographic tunnel.</p>
+                </div>
+                <div class="slide-visual" style="min-height: 250px; margin-top: 30px;">
+                    <canvas id="canvas-s8"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-8">
+                <div class="slide-info">
+                    <div class="slide-index">Section 09 // Security Pillars</div>
+                    <h2 class="slide-title">VPN Alignment with the CIA Triad</h2>
+                    <p class="slide-description">Modern VPN networks cleanly satisfy core information security demands by baking critical protections directly into the tunnel transmission layer.</p>
+                    <div class="metric-list" style="margin-top: 20px;">
+                        <div class="metric-item" style="border-left: 3px solid var(--accent-cyan);"><span class="metric-label"><strong>Confidentiality</strong> → AES Payload Encryption</span></div>
+                        <div class="metric-item" style="border-left: 3px solid var(--accent-purple);"><span class="metric-label"><strong>Integrity</strong> → HMAC Cryptographic Hashing</span></div>
+                        <div class="metric-item" style="border-left: 3px solid var(--accent-blue);"><span class="metric-label"><strong>Authentication</strong> → Pre-Shared Key / Digital Certificates</span></div>
+                    </div>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s9"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-9">
+                <div class="slide-info">
+                    <div class="slide-index">Section 10 // Key Strengthening</div>
+                    <h2 class="slide-title">Passwords vs. Cryptographic Keys</h2>
+                    <p class="slide-description">Raw text strings are highly vulnerable to localized entropy leaks and brute-force attacks. VPN frameworks isolate these targets by passing human-readable input strings through robust Key Derivation Functions (KDF), producing highly secure symmetric cryptographic operational keys.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s10"></canvas>
+                </div>
+            </div>
+
+            <div class="slide slide-full-width" id="slide-10">
+                <div class="slide-info" style="margin:0 auto 30px auto; text-align:center;">
+                    <div class="slide-index">Section 11 // Encryption Standard Evolutions</div>
+                    <h2 class="slide-title">Symmetric Cryptographic Algorithms</h2>
+                </div>
+                <div class="algo-grid">
+                    <div class="algo-card">
+                        <div class="algo-meta"><span>1977 DEPRECATED</span><span>56-BIT KEY</span></div>
+                        <div class="algo-title" style="color:var(--accent-red)">DES</div>
+                        <p class="slide-description" style="font-size:13px;">Highly vulnerable to modern parallel compute clusters. Linear cryptanalysis shatters the keyspace configuration within hours.</p>
+                    </div>
+                    <div class="algo-card">
+                        <div class="algo-meta"><span>1998 LEGACY</span><span>168-BIT KEY</span></div>
+                        <div class="algo-title" style="color:var(--accent-purple)">3DES</div>
+                        <p class="slide-description" style="font-size:13px;">Appends security processing loops by repeating DES three distinct times. Suffers heavy performance drawbacks and block collision issues.</p>
+                    </div>
+                    <div class="algo-card active-standard">
+                        <div class="algo-meta" style="color:var(--accent-cyan)"><span>ACTIVE STANDARD</span><span>256-BIT KEY</span></div>
+                        <div class="algo-title" style="color:var(--accent-cyan)">AES</div>
+                        <p class="slide-description" style="font-size:13px;">Advanced Rijndael substitution-permutation network architecture. Nation-state validated hardware efficiency with near-infinite brute-force resistance.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-11">
+                <div class="slide-info">
+                    <div class="slide-index">Section 12 // Integrity Engines</div>
+                    <h2 class="slide-title">Cryptographic Hashing Mechanisms</h2>
+                    <p class="slide-description">Hashed verification strings run a strict, one-way math equation on incoming data blocks. This process creates a fixed-size fingerprint used to confirm that transmissions have not been modified or corrupted in transit.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s12"></canvas>
+                </div>
+            </div>
+
+            <div class="slide slide-full-width" id="slide-12">
+                <div class="slide-info" style="margin: 0 auto 20px auto; text-align:center;">
+                    <div class="slide-index">Section 13 // Consolidated Topology</div>
+                    <h2 class="slide-title">How a VPN Actually Works</h2>
+                    <p class="slide-description" style="max-width: 600px; margin: 0 auto;">Combining continuous authentication, symmetric block encryption, and one-way verification hashes into a single, unified transit layer.</p>
+                </div>
+                <div class="slide-visual" style="min-height:380px;">
+                    <canvas id="canvas-s13"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-13">
+                <div class="slide-info">
+                    <div class="slide-index">Section 14 // Covert Execution Types</div>
+                    <h2 class="slide-title">Cryptography vs. Steganography</h2>
+                    <p class="slide-description">While traditional cryptography focuses on completely scramble-masking structural payload legibility, steganography embeds private indicators directly inside normal transport carriers to hide the very existence of the underlying communication link.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s14"></canvas>
+                </div>
+            </div>
+
+            <div class="slide slide-full-width" id="slide-14">
+                <div class="slide-info" style="margin: 0 auto 20px auto; text-align:center;">
+                    <div class="slide-index">Section 15 // Standard Infrastructure Frameworks</div>
+                    <h2 class="slide-title">The IPSec Architectural Framework</h2>
+                    <p class="slide-description" style="max-width:650px; margin:0 auto;">Analyzing the complete operational protocol stack: from initial key discovery management (IKE) down through payload security headers (ESP) and authentication wrappers (AH).</p>
+                </div>
+                <div class="slide-visual" style="min-height:380px;">
+                    <canvas id="canvas-s14_stack"></canvas>
+                </div>
+            </div>
+
+            <div class="slide" id="slide-15">
+                <div class="slide-info">
+                    <div class="slide-index">Section 16 // Deployment Typologies</div>
+                    <h2 class="slide-title">Site-to-Site vs. Remote Access</h2>
+                    <p class="slide-description">Site-to-Site modes permanently bridge separate corporate physical offices across a static encrypted link. Remote Access setups dynamically establish temporary on-demand connections for mobile workers connecting from unverified external networks.</p>
+                </div>
+                <div class="slide-visual">
+                    <canvas id="canvas-s16"></canvas>
+                </div>
+            </div>
+
+            <div class="slide slide-full-width" id="slide-16">
+                <div class="slide-info" style="margin: 0 auto 10px auto; text-align:center;">
+                    <div class="slide-index">Section 17 // Unified End-To-End Data Lifecycle</div>
+                    <h2 class="slide-title">The Complete Network Journey</h2>
+                </div>
+                <div class="slide-visual" style="min-height:420px;">
+                    <canvas id="canvas-s17"></canvas>
+                </div>
+            </div>
+
+            <div class="slide slide-full-width" id="slide-17">
+                <div class="slide-info" style="margin: 0 auto; max-width: 900px; text-align: center;">
+                    <div class="slide-index" style="color:var(--accent-cyan)">Enterprise Conclusion</div>
+                    <h2 class="slide-title" style="font-size: 46px; margin: 15px 0;">Automated Global Security Infrastructure</h2>
+                    <p class="slide-description" style="font-size:16px; max-width: 700px; margin: 0 auto 30px auto;">By running continuous protection rules right at the network edge, modern VPN infrastructure delivers automated data confidentiality, reliable verification checks, and strict peer identity checks while removing human error, password sprawl, and endpoint software management headaches.</p>
+                </div>
+                <div class="slide-visual" style="min-height:320px;">
+                    <canvas id="canvas-s18"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <footer>
+            <div class="controls-btn-group">
+                <button class="btn" id="btn-prev">SEC_PREV</button>
+            </div>
+            <div class="timeline-bar">
+                <div class="timeline-progress" id="progress"></div>
+            </div>
+            <div class="controls-btn-group">
+                <button class="btn" id="btn-next" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">SEC_NEXT</button>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Presentation Logic Engine
+        const totalSlides = 18;
+        let currentSlide = 0;
+        const slides = [];
+        const canvasInitializers = {};
+
+        // Slide Navigation Elements
+        const tracker = document.getElementById('slide-tracker');
+        const progress = document.getElementById('progress');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+
+        // Gather slides
+        for(let i=0; i<totalSlides; i++) {
+            slides.push(document.getElementById(`slide-${i}`));
+        }
+
+        function updateSlidePosition() {
+            slides.forEach((slide, idx) => {
+                if(idx === currentSlide) {
+                    slide.classList.add('active');
+                    // Initialize or trigger layout sizes on target active slide canvas
+                    const canvas = slide.querySelector('canvas');
+                    if(canvas) {
+                        resizeCanvas(canvas);
+                    }
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+
+            // Meta indicators update
+            const displayNum = (currentSlide + 1).toString().padStart(2, '0');
+            tracker.innerText = `SYS_STATUS: OPERATIONAL // SEC_${displayNum}`;
+            progress.style.width = `${(currentSlide / (totalSlides - 1)) * 100}%`;
+            
+            // Fire target system animations loops initialization safely
+            if(canvasInitializers[currentSlide]) {
+                canvasInitializers[currentSlide]();
+            }
+        }
+
+        btnNext.addEventListener('click', () => {
+            if(currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlidePosition();
+            }
+        });
+
+        btnPrev.addEventListener('click', () => {
+            if(currentSlide > 0) {
+                currentSlide--;
+                updateSlidePosition();
+            }
+        });
+
+        // Global Window Keyboard binds
+        window.addEventListener('keydown', (e) => {
+            if(e.key === "ArrowRight" || e.key === " ") {
+                if(currentSlide < totalSlides - 1) { currentSlide++; updateSlidePosition(); }
+            } else if(e.key === "ArrowLeft") {
+                if(currentSlide > 0) { currentSlide--; updateSlidePosition(); }
+            }
+        });
+
+        function resizeCanvas(canvas) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            const ctx = canvas.getContext('2d');
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        window.addEventListener('resize', () => {
+            const activeCanvas = slides[currentSlide].querySelector('canvas');
+            if(activeCanvas) resizeCanvas(activeCanvas);
+        });
+
+        // Helper Graphic Utilities
+        function drawGlowNode(ctx, x, y, label, color = '#0095ff', pulse = 0) {
+            ctx.save();
+            ctx.shadowBlur = 10 + pulse * 5;
+            ctx.shadowColor = color;
+            ctx.fillStyle = '#0d0f18';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 16, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x, y, 4 + pulse * 2, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x, y + 32);
+            ctx.restore();
+        }
+
+        function drawWire(ctx, x1, y1, x2, y2, color = 'rgba(43, 56, 88, 0.5)', dashed = false) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            if(dashed) ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // ==========================================
+        // ANIMATION ENGINES & RENDERING LIFECYCLES
+        // ==========================================
+        let animFrameId = null;
+        function clearRunningLoop() {
+            if(animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+        }
+
+        // --- SECTION 1 LOOP ---
+        canvasInitializers[0] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s1');
+            const ctx = canvas.getContext('2d');
+            let packetT = 0;
+            let snifferAlert = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+
+                // Nodes positions
+                let n1X = w * 0.2, nY = h * 0.4;
+                let n2X = w * 0.5;
+                let n3X = w * 0.8;
+                let attackerY = h * 0.75;
+
+                // Topology Wires
+                drawWire(ctx, n1X, nY, n2X, nY);
+                drawWire(ctx, n2X, nY, n3X, nY);
+                drawWire(ctx, n2X, nY, n2X, attackerY, 'rgba(255, 61, 48, 0.3)', true);
+
+                // Render Active System Nodes
+                drawGlowNode(ctx, n1X, nY, "WORKSTATION-01", varColor('--accent-blue'));
+                drawGlowNode(ctx, n2X, nY, "NETWORK SWITCH");
+                drawGlowNode(ctx, n3X, nY, "FILE-RECEIVER", varColor('--accent-blue'));
+                drawGlowNode(ctx, n2X, attackerY, "PROMISCUOUS-TAP (MALICIOUS)", varColor('--accent-red'), Math.sin(packetT * 0.1));
+
+                // Packet Vector Calculations
+                packetT += 0.015;
+                if(packetT > 2) { packetT = 0; snifferAlert = 0; }
+
+                let px, py;
+                let payloadLabel = "PAYLOAD: classified_financials.pdf";
+                ctx.fillStyle = varColor('--accent-cyan');
+                ctx.font = '10px monospace';
+
+                if(packetT < 1) {
+                    px = n1X + (n2X - n1X) * packetT;
+                    py = nY;
+                    ctx.fillText(payloadLabel, px - 60, py - 15);
+                } else {
+                    px = n2X + (n3X - n2X) * (packetT - 1);
+                    py = nY;
+                    ctx.fillText(payloadLabel, px - 60, py - 15);
+
+                    // Replicated intercepted flow vector falling downwards
+                    let spyT = packetT - 1;
+                    let sx = n2X;
+                    let sy = nY + (attackerY - nY) * spyT;
+                    ctx.fillStyle = varColor('--accent-red');
+                    ctx.fillRect(sx - 4, sy - 4, 8, 8);
+                    ctx.fillText("CAPTURED CLEAR TEXT", sx + 12, sy + 4);
+                    snifferAlert = 1;
+                }
+
+                ctx.fillStyle = varColor('--accent-cyan');
+                if(packetT < 1 || packetT >= 1) {
+                    ctx.fillRect(px - 5, py - 5, 10, 10);
+                }
+
+                document.getElementById('s1-status').innerText = snifferAlert ? "PACKET INFILTRATED & LOGGED" : "MONITORING LINE STREAMS...";
+                document.getElementById('s1-status').style.color = snifferAlert ? varColor('--accent-red') : varColor('--accent-cyan');
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 2 LOOP ---
+        canvasInitializers[1] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s2');
+            const ctx = canvas.getContext('2d');
+            let tick = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                tick += 0.02;
+
+                let cx = w/2, cy = h/2;
+                
+                // Draw app sandbox visualization boundary
+                ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+                ctx.beginPath(); ctx.arc(cx, cy, 110, 0, Math.PI*2); ctx.stroke();
+
+                // Draw structural locked vector component vs peripheral components
+                ctx.save();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = varColor('--accent-green');
+                ctx.fillStyle = varColor('--accent-green');
+                ctx.font = '12px monospace';
+                ctx.fillText("[SECURE FILE AREA] payload.pdf.enc", cx - 90, cy - 140);
+                
+                // Draw secure file node lock emblem
+                ctx.fillRect(cx - 30, cy - 40, 60, 50);
+                ctx.fillStyle = '#050508';
+                ctx.fillRect(cx - 20, cy - 30, 40, 30);
+                ctx.restore();
+
+                // Unsecure peripheral streams
+                let angle = tick;
+                let radius = 130 + Math.sin(tick)*10;
+                let sx = cx + Math.cos(angle)*radius;
+                let sy = cy + Math.sin(angle)*radius;
+
+                drawGlowNode(ctx, sx, sy, "SNOOPED STREAM (.MP4)", varColor('--accent-red'), 0.5);
+                
+                let sx2 = cx + Math.cos(angle + Math.PI)*radius;
+                let sy2 = cy + Math.sin(angle + Math.PI)*radius;
+                drawGlowNode(ctx, sx2, sy2, "EXPOSED SQL QUERY", varColor('--accent-red'), 0.2);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 3 LOOP ---
+        canvasInitializers[2] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s3');
+            const ctx = canvas.getContext('2d');
+            let t = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                t += 0.01;
+
+                let startX = w * 0.15, endX = w * 0.85, midY = h * 0.5;
+
+                // Pipeline elements
+                drawWire(ctx, startX, midY, endX, midY);
+
+                let p1 = startX + (endX - startX) * 0.25;
+                let p2 = startX + (endX - startX) * 0.5;
+                let p3 = startX + (endX - startX) * 0.75;
+
+                drawGlowNode(ctx, startX, midY, "Plain File");
+                drawGlowNode(ctx, p1, midY, "Local App (Encrypt)", varColor('--accent-purple'));
+                drawGlowNode(ctx, p2, midY, "Transit Route", varColor('--accent-cyan'));
+                drawGlowNode(ctx, p3, midY, "Remote App (Decrypt)", varColor('--accent-purple'));
+                drawGlowNode(ctx, endX, midY, "Plain Delivery Target");
+
+                // Moving flow entity
+                let pulseX = startX + ((t % 1) * (endX - startX));
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(pulseX, midY, 6, 0, Math.PI*2); ctx.fill();
+
+                // Draw license cost graphical warning line indicator at bottom grid area
+                ctx.strokeStyle = varColor('--accent-red');
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for(let bx = 0; bx < w; bx += 10) {
+                    let by = h - 20 - Math.pow(bx/w, 3) * 80;
+                    if(bx === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+                }
+                ctx.stroke();
+                ctx.fillStyle = varColor('--accent-red');
+                ctx.font = '10px monospace';
+                ctx.fillText("Scaling Maintenance Overhead Cost Curve", 20, h - 70);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 4 LOOP ---
+        canvasInitializers[3] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s4');
+            const ctx = canvas.getContext('2d');
+            let tick = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                tick += 0.01;
+
+                // Draw cluster group matrices grid representing organizational nodes
+                let rows = 4, cols = 6;
+                let stepX = w / (cols + 1);
+                let stepY = h / (rows + 1);
+
+                for(let r=0; r<rows; r++) {
+                    for(let c=0; c<cols; c++) {
+                        let nx = stepX * (c + 1);
+                        let ny = stepY * (r + 1);
+                        
+                        // Pseudo random determination of entity adherence behavior metrics
+                        let seed = (r * cols + c);
+                        let state = Math.sin(seed + tick) > 0.3; 
+                        let bypassState = Math.sin(seed * 2 + tick) > 0.7;
+
+                        let color = varColor('--accent-green');
+                        let lbl = "Compliant Employee";
+                        if(state) { color = varColor('--accent-purple'); lbl = "Forgot Encryption Key Key"; }
+                        if(bypassState) { color = varColor('--accent-red'); lbl = "Security Rule Violated/Bypassed"; }
+
+                        ctx.fillStyle = color;
+                        ctx.beginPath();
+                        ctx.arc(nx, ny, 6, 0, Math.PI*2);
+                        ctx.fill();
+
+                        if(Math.abs(Math.sin(tick*2) - Math.sin(seed)) < 0.1) {
+                            ctx.strokeStyle = color;
+                            ctx.strokeRect(nx - 12, ny - 12, 24, 24);
+                            ctx.font = '9px monospace';
+                            ctx.fillText(lbl, nx - 40, ny - 18);
+                        }
+                    }
+                }
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 5 LOOP ---
+        canvasInitializers[4] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s5');
+            const ctx = canvas.getContext('2d');
+            let time = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                time += 0.02;
+
+                let cx = w/2, cy = h/2;
+                drawGlowNode(ctx, cx, cy, "MASTER SEED KEY SOURCE", varColor('--accent-purple'));
+
+                let channels = [
+                    { name: "Insecure Team Chat history log", color: varColor('--accent-red'), angle: 0 },
+                    { name: "Corporate Email Plaintext Threads", color: varColor('--accent-red'), angle: Math.PI * 0.5 },
+                    { name: "Unencrypted Desktop Sticky Notes", color: varColor('--accent-red'), angle: Math.PI * 1.0 },
+                    { name: "Cellular SMS Messaging Link", color: varColor('--accent-purple'), angle: Math.PI * 1.5 }
+                ];
+
+                channels.forEach(ch => {
+                    let lx = cx + Math.cos(ch.angle + Math.sin(time)*0.1) * 140;
+                    let ly = cy + Math.sin(ch.angle + Math.sin(time)*0.1) * 110;
+                    drawWire(ctx, cx, cy, lx, ly, 'rgba(255,255,255,0.05)');
+                    drawGlowNode(ctx, lx, ly, ch.name, ch.color);
+                    
+                    // Key leakage drop animations
+                    let pT = (time * 0.3) % 1;
+                    let kx = cx + (lx - cx) * pT;
+                    let ky = cy + (ly - cy) * pT;
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px monospace';
+                    ctx.fillText("KEY_str#99", kx, ky);
+                });
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 6 LOOP ---
+        canvasInitializers[5] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s6');
+            const ctx = canvas.getContext('2d');
+            let step = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                step += 0.01;
+
+                let x1 = w*0.15, x2 = w*0.5, x3 = w*0.85, y = h*0.4;
+                drawWire(ctx, x1, y, x2, y);
+                drawWire(ctx, x2, y, x3, y);
+
+                drawGlowNode(ctx, x1, y, "Origin (Source Payload)");
+                drawGlowNode(ctx, x2, y, "Man-in-the-Middle Router Intercept", varColor('--accent-red'));
+                
+                let altered = Math.sin(step * 3) > 0;
+                drawGlowNode(ctx, x3, y, altered ? "Receiver: DATA INVALIDATED" : "Receiver: VALIDATING...", altered ? varColor('--accent-red') : varColor('--accent-cyan'));
+
+                // Running calculation lines demonstrating signature hashes matching logic
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px monospace';
+                let rawDataHex = "0x5A3F98B2C1E4D6";
+                let modifiedHex = "0x5A3F98FFC1E4D6";
+                
+                ctx.fillText(`TRANSIT BUFFER VALUE: ${altered ? modifiedHex : rawDataHex}`, w*0.35, h * 0.7);
+                ctx.fillStyle = altered ? varColor('--accent-red') : varColor('--accent-green');
+                ctx.fillText(`INTEGRITY CHECKSUM RESULT: ${altered ? "HASH MISMATCH [BAD BLOCK]" : "HASH MATCH [INTEGRAL DATA]"}`, w*0.35, h * 0.78);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 7 LOOP ---
+        canvasInitializers[6] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s7');
+            const ctx = canvas.getContext('2d');
+            let val = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                val += 0.05;
+
+                // Render heavy computational application processing loops metrics visualizer
+                let cx = w/2, cy = h/2;
+                ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                ctx.strokeRect(cx - 150, cy - 100, 300, 200);
+
+                let spike = Math.abs(Math.sin(val) * 80) + (Math.random()*15);
+                if(val % 5 > 3.5) spike += 40; // Simulate extreme context swap calculations spikes
+
+                ctx.fillStyle = 'rgba(255, 59, 48, 0.15)';
+                ctx.fillRect(cx - 140, cy + 90, 280, -spike * 1.5);
+
+                ctx.fillStyle = varColor('--accent-red');
+                ctx.font = '14px monospace';
+                ctx.fillText(`ENDPOINT THREAD SATURATION: ${Math.min(100, Math.floor(spike + 15))}%`, cx - 130, cy - 60);
+                ctx.font = '11px monospace';
+                ctx.fillStyle = varColor('--text-muted');
+                ctx.fillText("Manual cipher math loops saturating execution pipelines", cx - 130, cy - 40);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 8 BREAKTHROUGH ---
+        canvasInitializers[7] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s8');
+            const ctx = canvas.getContext('2d');
+            let time = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                time += 0.03;
+
+                let y = h/2;
+                let leftBound = w*0.1;
+                let rightBound = w*0.9;
+
+                // Draw clean thick protective encapsulating tunnel geometry matrix
+                ctx.save();
+                ctx.strokeStyle = varColor('--accent-cyan');
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = varColor('--accent-cyan');
+                
+                // Top tunnel boundary wall
+                ctx.beginPath(); ctx.moveTo(leftBound, y - 40); ctx.lineTo(rightBound, y - 40); ctx.stroke();
+                // Bottom tunnel boundary wall
+                ctx.beginPath(); ctx.moveTo(leftBound, y + 40); ctx.lineTo(rightBound, y + 40); ctx.stroke();
+                ctx.restore();
+
+                // Decorative animated cyber pulse signals flowing inside safely
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+                ctx.lineWidth = 1;
+                for(let ly = y - 30; ly <= y + 30; ly += 15) {
+                    ctx.setLineDash([30, 20 + Math.sin(time)*10]);
+                    ctx.beginPath();
+                    ctx.moveTo(leftBound, ly);
+                    ctx.lineTo(rightBound, ly);
+                    ctx.stroke();
+                }
+
+                // Internal private data carrier vectors flowing securely
+                let px = leftBound + ((time * 80) % (rightBound - leftBound));
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(px - 10, y - 10, 20, 20);
+                ctx.font = '9px monospace';
+                ctx.fillStyle = varColor('--accent-cyan');
+                ctx.fillText("SECURE ENCAPSULATED IP PACKET", px - 60, y - 16);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 9 CIA TRIAD ---
+        canvasInitializers[8] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s9');
+            const ctx = canvas.getContext('2d');
+            let t = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                t += 0.015;
+
+                let cx = w/2, cy = h/2 - 20;
+                let r = 90;
+
+                // Points coordinates for programmatic mathematical equilateral triangle tracking
+                let p1 = { x: cx, y: cy - r };
+                let p2 = { x: cx - r * Math.cos(Math.PI/6), y: cy + r * Math.sin(Math.PI/6) };
+                let p3 = { x: cx + r * Math.cos(Math.PI/6), y: cy + r * Math.sin(Math.PI/6) };
+
+                // Lines connecting execution vertices
+                ctx.lineWidth = 2;
+                drawWire(ctx, p1.x, p1.y, p2.x, p2.y, varColor('--accent-cyan'));
+                drawWire(ctx, p2.x, p2.y, p3.x, p3.y, varColor('--accent-purple'));
+                drawWire(ctx, p3.x, p3.y, p1.x, p1.y, varColor('--accent-blue'));
+
+                // Render structural core identity markers
+                drawGlowNode(ctx, p1.x, p1.y, "CONFIDENTIALITY (AES)", varColor('--accent-cyan'), Math.sin(t));
+                drawGlowNode(ctx, p2.x, p2.y, "INTEGRITY (HMAC)", varColor('--accent-purple'), Math.sin(t + 1));
+                drawGlowNode(ctx, p3.x, p3.y, "AUTHENTICATION (IKE)", varColor('--accent-blue'), Math.sin(t + 2));
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 10 KEY DERIVATION ---
+        canvasInitializers[9] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s10');
+            const ctx = canvas.getContext('2d');
+            let rotation = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                rotation += 0.02;
+
+                let x1 = w*0.15, x2 = w*0.45, x3 = w*0.8;
+                let y = h/2;
+
+                drawWire(ctx, x1, y, x2 - 40, y);
+                drawWire(ctx, x2 + 40, y, x3, y);
+
+                drawGlowNode(ctx, x1, y, "User Pin: 'mypass123'", varColor('--accent-purple'));
+                drawGlowNode(ctx, x3, y, "AES Key Vector: 0x9F3A...", varColor('--accent-cyan'));
+
+                // Render dynamic processing transformation matrix wheel engine
+                ctx.save();
+                ctx.translate(x2, y);
+                ctx.rotate(rotation);
+                ctx.strokeStyle = varColor('--accent-cyan');
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-25, -25, 50, 50);
+                ctx.restore();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText("PBKDF2 Engine", x2, y + 45);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 12 HASH COMPUTE ---
+        canvasInitializers[11] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s12');
+            const ctx = canvas.getContext('2d');
+            let t = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                t += 0.02;
+
+                let lx = w*0.2, mx = w*0.5, rx = w*0.8;
+                let y = h/2;
+
+                drawWire(ctx, lx, y, mx, y);
+                drawWire(ctx, mx, y, rx, y);
+
+                drawGlowNode(ctx, lx, y, "Variable Plain Data Stream");
+                
+                // Draw functional transform unit block box
+                ctx.fillStyle = varColor('--bg-panel');
+                ctx.strokeStyle = varColor('--accent-purple');
+                ctx.lineWidth = 2;
+                ctx.fillRect(mx - 40, y - 30, 80, 60);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px monospace';
+                ctx.fillText("SHA-256", mx - 24, y + 5);
+
+                // Derived deterministic static string length representation output
+                drawGlowNode(ctx, rx, y, "Fixed String Token Output (32 Bytes)", varColor('--accent-cyan'));
+
+                // Signal item flying down network paths
+                let px = lx + ((t%1)*(mx - lx));
+                ctx.fillStyle = varColor('--accent-purple');
+                ctx.fillRect(px-3, y-3, 6, 6);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 13 HOW VPN WORKS ACTUAL ARCHITECTURE ---
+        canvasInitializers[12] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s13');
+            const ctx = canvas.getContext('2d');
+            let cycle = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                cycle += 0.015;
+
+                let lx = w*0.15, rx = w*0.85, midY = h*0.55;
+
+                // Central Secure Layered Tunnel visual construction representation
+                ctx.fillStyle = 'rgba(20, 24, 41, 0.6)';
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.fillRect(lx + 50, midY - 60, (rx - lx) - 100, 120);
+                ctx.strokeRect(lx + 50, midY - 60, (rx - lx) - 100, 120);
+
+                ctx.fillStyle = 'rgba(138, 43, 226, 0.15)';
+                ctx.fillRect(lx + 90, midY - 35, (rx - lx) - 180, 70);
+
+                ctx.fillStyle = varColor('--text-muted');
+                ctx.font = '11px monospace';
+                ctx.fillText("OUTER CARRIER ENVELOPE (IP ROUTING)", lx + 70, midY - 75);
+                ctx.fillStyle = varColor('--accent-purple');
+                ctx.fillText("INNER ENCRYPTED DATASTREAM (ESP PAYLOAD)", lx + 110, midY - 15);
+
+                drawGlowNode(ctx, lx, midY, "Local Network Gateway Node", varColor('--accent-blue'));
+                drawGlowNode(ctx, rx, midY, "Remote Enterprise Access Hub", varColor('--accent-blue'));
+
+                // Flying unified multi token packet representation
+                let travelT = (cycle % 1);
+                let pX = (lx + 50) + travelT * ((rx - lx) - 100);
+                
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(pX - 6, midY - 6, 12, 12);
+                ctx.strokeStyle = varColor('--accent-cyan');
+                ctx.strokeRect(pX - 10, midY - 10, 20, 20);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 14 CRYPTO VS STEGANO ---
+        canvasInitializers[13] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s14');
+            const ctx = canvas.getContext('2d');
+            let tick = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                tick += 0.02;
+
+                let leftX = w * 0.28, rightX = w * 0.72, y = h * 0.5;
+
+                // Left Panel Display Area: Cryptography scrambled text visual simulation
+                ctx.fillStyle = 'rgba(255,255,255,0.01)';
+                ctx.strokeStyle = varColor('--border-color');
+                ctx.fillRect(leftX - 100, y - 100, 200, 180);
+                ctx.strokeRect(leftX - 100, y - 100, 200, 180);
+
+                ctx.fillStyle = varColor('--accent-cyan');
+                ctx.font = '14px monospace';
+                ctx.fillText("CRYPTOGRAPHY", leftX - 50, y - 120);
+
+                ctx.fillStyle = varColor('--text-muted');
+                ctx.font = '11px monospace';
+                for(let i=0; i<5; i++) {
+                    let textGarble = Math.random().toString(36).substring(2, 15).toUpperCase();
+                    ctx.fillText(textGarble, leftX - 80, y - 60 + (i*25));
+                }
+
+                // Right Panel Display Area: Steganography matrix integration hide hidden link execution
+                ctx.fillStyle = 'rgba(255,255,255,0.01)';
+                ctx.fillRect(rightX - 100, y - 100, 200, 180);
+                ctx.strokeRect(rightX - 100, y - 100, 200, 180);
+
+                ctx.fillStyle = varColor('--accent-purple');
+                ctx.font = '14px monospace';
+                ctx.fillText("STEGANOGRAPHY", rightX - 50, y - 120);
+
+                // Draw standard placeholder image asset vector blocks lines
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                ctx.strokeRect(rightX - 70, y - 70, 140, 120);
+                ctx.beginPath();
+                ctx.moveTo(rightX - 70, y + 20);
+                ctx.lineTo(rightX - 20, y - 20);
+                ctx.lineTo(rightX + 30, y + 40);
+                ctx.stroke();
+
+                // Hidden element tracking signal highlight
+                if(Math.sin(tick*2) > 0) {
+                    ctx.fillStyle = varColor('--accent-purple');
+                    ctx.font = '10px monospace';
+                    ctx.fillText("[HIDDEN TEXT PAYLOAD SEED EMBEDDED]", rightX - 90, y + 70);
+                }
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 15 IPSEC COMPOSITE STACK ---
+        canvasInitializers[14] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s14_stack');
+            const ctx = canvas.getContext('2d');
+            let cycle = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                cycle += 0.02;
+
+                let cx = w/2, startY = h * 0.22, layerH = 40, gap = 14;
+                let layers = [
+                    { name: "APPLICATION LAYER Data String Segment", color: 'rgba(255,255,255,0.05)', text: varColor('--text-main') },
+                    { name: "DATA PROTECTION MECHANISM (ESP Layer Encrypted Payload)", color: 'rgba(0, 240, 255, 0.15)', text: varColor('--accent-cyan') },
+                    { name: "INTEGRITY & SIGNATURE CHECKSUM VECTOR (AH Authentication)", color: 'rgba(138, 43, 226, 0.15)', text: varColor('--accent-purple') },
+                    { name: "TRANSPORT ROUTING LAYER PROTOCOL (Encapsulated Outer Header)", color: 'rgba(0, 149, 255, 0.1)', text: varColor('--accent-blue') }
+                ];
+
+                layers.forEach((layer, idx) => {
+                    let ty = startY + idx * (layerH + gap);
+                    ctx.fillStyle = layer.color;
+                    ctx.strokeStyle = varColor('--border-color');
+                    ctx.lineWidth = 1.5;
+                    ctx.fillRect(cx - 300, ty, 600, layerH);
+                    ctx.strokeRect(cx - 300, ty, 600, layerH);
+
+                    ctx.fillStyle = layer.text;
+                    ctx.font = '13px monospace';
+                    ctx.fillText(layer.name, cx - 270, ty + layerH/2 + 5);
+                });
+
+                // Flow path entity penetrating dynamic protocol structural levels downwards
+                let signalY = startY + (Math.abs(Math.sin(cycle * 0.4)) * (4 * (layerH + gap)));
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#fff';
+                ctx.beginPath();
+                ctx.arc(cx + 260, signalY, 5, 0, Math.PI*2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 16 VPN DEPLOYMENT MODES ---
+        canvasInitializers[15] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s16');
+            const ctx = canvas.getContext('2d');
+            let loop = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                loop += 0.02;
+
+                let midY = h * 0.5;
+                let leftCX = w * 0.25, rightCX = w * 0.75;
+
+                // SITE TO SITE MODEL
+                drawWire(ctx, leftCX - 60, midY - 30, leftCX + 60, midY - 30, varColor('--accent-cyan'));
+                drawGlowNode(ctx, leftCX - 60, midY - 30, "HQ Cluster");
+                drawGlowNode(ctx, leftCX + 60, midY - 30, "Branch Office");
+                ctx.fillStyle = varColor('--text-main');
+                ctx.font = '13px monospace';
+                ctx.fillText("SITE-TO-SITE (STATIC)", leftCX - 65, midY + 40);
+
+                // REMOTE ACCESS MODEL
+                drawWire(ctx, rightCX - 60, midY - 30, rightCX + 60, midY - 30, varColor('--accent-purple'), true);
+                drawGlowNode(ctx, rightCX - 60, midY - 30, "Remote Endpoint Worker", varColor('--accent-purple'));
+                drawGlowNode(ctx, rightCX + 60, midY - 30, "Enterprise Corporate VPN Concentrator Gate");
+                ctx.fillStyle = varColor('--text-main');
+                ctx.font = '13px monospace';
+                ctx.fillText("REMOTE ACCESS (DYNAMIC)", rightCX - 75, midY + 40);
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 17 THE ENTIRE COMPLETE PIPELINE JOURNEY ---
+        canvasInitializers[16] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s17');
+            const ctx = canvas.getContext('2d');
+            let t = 0;
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                t += 0.008;
+
+                let pipelineStages = [
+                    "Data Construct Generated", "AES Encryption Scramble", "HMAC Hash Bind", 
+                    "Peer Session Authentication", "Tunnel Injection", "Public Web Route Carrier Transit", 
+                    "Integrity Check Validated", "AES Payload Decryption", "Target Endpoint Delivery Secure"
+                ];
+
+                let stepX = w / (pipelineStages.length + 1);
+                let midY = h * 0.5;
+
+                // Connection line matrix track trace
+                ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(stepX, midY);
+                for(let i=1; i<pipelineStages.length; i++) {
+                    ctx.lineTo(stepX * (i+1), midY);
+                }
+                ctx.stroke();
+
+                pipelineStages.forEach((stage, idx) => {
+                    let nx = stepX * (idx + 1);
+                    
+                    // Determine highlight colors based on progress tracking index properties
+                    let currentActiveStep = Math.floor((t % 1) * pipelineStages.length);
+                    let matched = idx === currentActiveStep;
+
+                    ctx.fillStyle = matched ? varColor('--accent-cyan') : 'rgba(255,255,255,0.1)';
+                    ctx.beginPath();
+                    ctx.arc(nx, midY, matched ? 9 : 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    if(matched) {
+                        ctx.strokeStyle = varColor('--accent-cyan');
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(nx - 20, midY - 20, 40, 40);
+                    }
+
+                    ctx.save();
+                    ctx.translate(nx, midY + 25);
+                    ctx.rotate(Math.PI / 4); // Angle text upward clean
+                    ctx.fillStyle = matched ? varColor('--text-main') : varColor('--text-muted');
+                    ctx.font = matched ? 'bold 11px monospace' : '9px monospace';
+                    ctx.fillText(stage, 0, 0);
+                    ctx.restore();
+                });
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        // --- SECTION 18 FINAL GLOBAL MAP SYSTEM ---
+        canvasInitializers[17] = function() {
+            clearRunningLoop();
+            const canvas = document.getElementById('canvas-s18');
+            const ctx = canvas.getContext('2d');
+            let timer = 0;
+
+            // Generate deterministic global node arrays mapping network elements
+            let mapNodes = [];
+            for(let i=0; i<35; i++) {
+                mapNodes.push({
+                    x: 60 + Math.random() * 800,
+                    y: 40 + Math.random() * 240,
+                    r: 2 + Math.random()*3,
+                    pulseSeed: Math.random() * 10
+                });
+            }
+
+            function render() {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+                ctx.clearRect(0,0,w,h);
+                timer += 0.02;
+
+                // Scale node array distribution boundaries cleanly inside localized canvas contexts
+                mapNodes.forEach(node => {
+                    let scaleX = (node.x / 920) * w;
+                    let scaleY = (node.y / 320) * h;
+
+                    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                    ctx.beginPath();
+                    ctx.arc(scaleX, scaleY, node.r, 0, Math.PI*2);
+                    ctx.fill();
+
+                    // Generate random link interconnections maps strings visuals loops
+                    if(Math.sin(timer + node.pulseSeed) > 0.8) {
+                        ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+                        ctx.beginPath();
+                        ctx.moveTo(scaleX, scaleY);
+                        ctx.lineTo(w/2, h/2);
+                        ctx.stroke();
+                    }
+                });
+
+                // Explicit core corporate data delivery loops nodes visualizer indicators
+                drawGlowNode(ctx, w*0.15, h*0.35, "Global Endpoint Node Europe", varColor('--accent-cyan'));
+                drawGlowNode(ctx, w*0.85, h*0.65, "Data Core US-EAST", varColor('--accent-purple'));
+                drawWire(ctx, w*0.15, h*0.35, w*0.85, h*0.65, varColor('--accent-cyan'));
+
+                animFrameId = requestAnimationFrame(render);
+            }
+            render();
+        };
+
+        function varColor(variableName) {
+            return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+        }
+
+        // Complete initialization boot routine kickoff configuration execution
+        window.removeAttribute ? window.removeAttribute('loading') : null;
+        updateSlidePosition();
+    </script>
+</body>
+</html>
